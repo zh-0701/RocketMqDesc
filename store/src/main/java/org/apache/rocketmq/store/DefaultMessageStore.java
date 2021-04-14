@@ -1974,6 +1974,7 @@ public class DefaultMessageStore implements MessageStore {
                                     //生成consumerqueue和indexfile文件
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
+                                    //有新的消息写入commitlog 则发布监听事件
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                         && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()) {
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),

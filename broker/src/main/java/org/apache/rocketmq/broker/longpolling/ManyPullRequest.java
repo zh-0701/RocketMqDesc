@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ManyPullRequest {
+    //list是因为可能在第一个request挂起到下一次挂起期间有新的请求过来
     private final ArrayList<PullRequest> pullRequestList = new ArrayList<>();
 
     public synchronized void addPullRequest(final PullRequest pullRequest) {
@@ -30,6 +31,7 @@ public class ManyPullRequest {
         this.pullRequestList.addAll(many);
     }
 
+    //该方法为什么并发
     public synchronized List<PullRequest> cloneListAndClear() {
         if (!this.pullRequestList.isEmpty()) {
             List<PullRequest> result = (ArrayList<PullRequest>) this.pullRequestList.clone();
