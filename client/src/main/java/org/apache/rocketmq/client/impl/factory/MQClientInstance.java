@@ -238,7 +238,7 @@ public class MQClientInstance {
                     this.startScheduledTask();
                     // Start pull service
                     this.pullMessageService.start();
-                    // Start rebalance service
+                    // 集群模式下  消费队列负载定时任务
                     this.rebalanceService.start();
                     // Start push service
                     this.defaultMQProducer.getDefaultMQProducerImpl().start(false);
@@ -969,7 +969,9 @@ public class MQClientInstance {
         this.rebalanceService.wakeup();
     }
 
+    //消息队列重新分布
     public void doRebalance() {
+        //每次负载会把每个group 都跑一遍
         for (Map.Entry<String, MQConsumerInner> entry : this.consumerTable.entrySet()) {
             MQConsumerInner impl = entry.getValue();
             if (impl != null) {

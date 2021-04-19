@@ -33,6 +33,7 @@ public interface AllocateMessageQueueStrategy {
      * @param cidAll consumer set in current consumer group
      * @return The allocate result of given strategy
      */
+    //负载均衡策略
     List<MessageQueue> allocate(
         final String consumerGroup,
         final String currentCID,

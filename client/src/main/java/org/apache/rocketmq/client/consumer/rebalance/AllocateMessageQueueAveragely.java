@@ -29,6 +29,12 @@ import org.apache.rocketmq.common.message.MessageQueue;
 public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrategy {
     private final InternalLogger log = ClientLogger.getLog();
 
+    //平均分配
+    //8个消息队列 q1-q8  3个消费者 c1-c3
+    //c1 ： q1 q2 q3
+    //c2 ： q4 q5 q6
+    //c3 ： q7 q8
+    //每个消费者都会调用该方法来获取应该负载的队列
     @Override
     public List<MessageQueue> allocate(String consumerGroup, String currentCID, List<MessageQueue> mqAll,
         List<String> cidAll) {
@@ -58,6 +64,7 @@ public class AllocateMessageQueueAveragely implements AllocateMessageQueueStrate
                 + 1 : mqAll.size() / cidAll.size());
         int startIndex = (mod > 0 && index < mod) ? index * averageSize : index * averageSize + mod;
         int range = Math.min(averageSize, mqAll.size() - startIndex);
+        //仅返回当前消费者所应该负载的队列
         for (int i = 0; i < range; i++) {
             result.add(mqAll.get((startIndex + i) % mqAll.size()));
         }

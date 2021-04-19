@@ -59,7 +59,7 @@ public class ProcessQueue {
     private final AtomicLong tryUnlockTimes = new AtomicLong(0);
     //最大偏移量，最后一条消息的偏移量
     private volatile long queueOffsetMax = 0L;
-    //是否被丢弃 标志 ，若被丢弃，该对象中的队列将被停止消费
+    //是否被丢弃标志 ，若被丢弃，该对象中的队列将被停止消费
     private volatile boolean dropped = false;
     //上次消息开始拉取的时间戳
     private volatile long lastPullTimestamp = System.currentTimeMillis();

@@ -105,6 +105,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private MQClientInstance mQClientFactory;
     private PullAPIWrapper pullAPIWrapper;
     private volatile boolean pause = false;
+    //是否顺序消费
     private boolean consumeOrderly = false;
     private MessageListener messageListenerInner;
     private OffsetStore offsetStore;

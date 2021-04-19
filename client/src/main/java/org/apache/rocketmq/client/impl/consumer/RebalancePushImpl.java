@@ -137,6 +137,7 @@ public class RebalancePushImpl extends RebalanceImpl {
         this.defaultMQPushConsumerImpl.getOffsetStore().removeOffset(mq);
     }
 
+    //从磁盘获取最新消费进度
     @Override
     public long computePullFromWhere(MessageQueue mq) {
         long result = -1;
