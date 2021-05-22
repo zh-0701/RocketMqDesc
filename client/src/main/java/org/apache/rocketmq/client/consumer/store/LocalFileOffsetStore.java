@@ -35,17 +35,20 @@ import org.apache.rocketmq.logging.InternalLogger;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.remoting.exception.RemotingException;
 
-/**
- * Local storage implementation
- */
+//广播模式消费进度存在本地
 public class LocalFileOffsetStore implements OffsetStore {
+    //进度保存目录
     public final static String LOCAL_OFFSET_STORE_DIR = System.getProperty(
         "rocketmq.client.localOffsetStoreDir",
         System.getProperty("user.home") + File.separator + ".rocketmq_offsets");
     private final static InternalLogger log = ClientLogger.getLog();
+    //客户端
     private final MQClientInstance mQClientFactory;
+    //消费组名
     private final String groupName;
+    //消费进度在磁盘上存储的 文件路径
     private final String storePath;
+    //内存中的消费进度
     private ConcurrentMap<MessageQueue, AtomicLong> offsetTable =
         new ConcurrentHashMap<MessageQueue, AtomicLong>();
 

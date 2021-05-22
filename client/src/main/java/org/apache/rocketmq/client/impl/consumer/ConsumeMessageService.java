@@ -21,6 +21,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 import org.apache.rocketmq.common.message.MessageQueue;
 import org.apache.rocketmq.common.protocol.body.ConsumeMessageDirectlyResult;
 
+//消费者消费消息接口
 public interface ConsumeMessageService {
     void start();
 
@@ -34,11 +35,13 @@ public interface ConsumeMessageService {
 
     int getCorePoolSize();
 
+    //命令消费消息方法入口
     ConsumeMessageDirectlyResult consumeMessageDirectly(final MessageExt msg, final String brokerName);
 
+    //消费消息入口
     void submitConsumeRequest(
-        final List<MessageExt> msgs,
-        final ProcessQueue processQueue,
-        final MessageQueue messageQueue,
-        final boolean dispathToConsume);
+        final List<MessageExt> msgs,//消息列表 默认一次最多拉32条
+        final ProcessQueue processQueue,//待处理的消息 队列
+        final MessageQueue messageQueue,//消息所属消费队列信息
+        final boolean dispathToConsume);//是否转发到消费线程池
 }
