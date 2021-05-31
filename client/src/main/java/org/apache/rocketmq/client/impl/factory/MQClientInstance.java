@@ -1031,13 +1031,17 @@ public class MQClientInstance {
         return null;
     }
 
+    //根据broker id和broker  name查找broker信息
+    //onlyThisBroker 是否需要返回broker的的对应服务器信息
     public FindBrokerResult findBrokerAddressInSubscribe(
         final String brokerName,
         final long brokerId,
         final boolean onlyThisBroker
     ) {
         String brokerAddr = null;
+        //是否为slave
         boolean slave = false;
+        //是否找到broker地址
         boolean found = false;
 
         HashMap<Long/* brokerId */, String/* address */> map = this.brokerAddrTable.get(brokerName);

@@ -493,6 +493,7 @@ public class MQClientAPIImpl {
         return null;
     }
 
+    //生产者->broker  请求id：1
     private SendResult sendMessageSync(
         final String addr,
         final String brokerName,

@@ -22,14 +22,17 @@ import org.apache.rocketmq.common.message.Message;
 import org.apache.rocketmq.common.protocol.NamespaceUtil;
 import org.apache.rocketmq.remoting.RPCHook;
 
+//事务消息生产者
 public class TransactionMQProducer extends DefaultMQProducer {
+
     private TransactionCheckListener transactionCheckListener;
     private int checkThreadPoolMinSize = 1;
     private int checkThreadPoolMaxSize = 1;
     private int checkRequestHoldMax = 2000;
 
+    //事务状态回查线程池
     private ExecutorService executorService;
-
+    //事务监听器，实现本地事务执行和事务回查
     private TransactionListener transactionListener;
 
     public TransactionMQProducer() {

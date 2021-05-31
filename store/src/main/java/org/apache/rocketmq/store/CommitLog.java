@@ -1565,6 +1565,7 @@ public class CommitLog {
             String key = keyBuilder.toString();
             Long queueOffset = CommitLog.this.topicQueueTable.get(key);
             //当前没有该topic，则新增topic并且更新偏移量
+            //事务消息二段提交的时候，会重新putoffset么
             if (null == queueOffset) {
                 queueOffset = 0L;
                 CommitLog.this.topicQueueTable.put(key, queueOffset);

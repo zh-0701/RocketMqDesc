@@ -27,6 +27,7 @@ public class TopicPublishInfo {
     private boolean orderTopic = false;
     private boolean haveTopicRouterInfo = false;
     private List<MessageQueue> messageQueueList = new ArrayList<MessageQueue>();
+    //每个线程发送消息的次数
     private volatile ThreadLocalIndex sendWhichQueue = new ThreadLocalIndex();
     private TopicRouteData topicRouteData;
 
@@ -67,10 +68,12 @@ public class TopicPublishInfo {
     }
 
     public MessageQueue selectOneMessageQueue(final String lastBrokerName) {
+        //lastBrokerName == null 说明第一次发送消息
         if (lastBrokerName == null) {
             return selectOneMessageQueue();
         } else {
             for (int i = 0; i < this.messageQueueList.size(); i++) {
+                //本地消息发送是运行以来第index次
                 int index = this.sendWhichQueue.getAndIncrement();
                 int pos = Math.abs(index) % this.messageQueueList.size();
                 if (pos < 0)

@@ -45,6 +45,7 @@ public class MessageExt extends Message {
     private int bodyCRC;
     private int reconsumeTimes;
 
+    //当该消息是事务消息的第二段提交的消息，则会存放halfmessage的offset
     private long preparedTransactionOffset;
 
     public MessageExt() {
