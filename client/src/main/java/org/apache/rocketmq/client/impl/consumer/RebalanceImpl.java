@@ -45,7 +45,7 @@ public abstract class RebalanceImpl {
     protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable = new ConcurrentHashMap<MessageQueue, ProcessQueue>(64);
     protected final ConcurrentMap<String/* topic */, Set<MessageQueue>> topicSubscribeInfoTable =
         new ConcurrentHashMap<String, Set<MessageQueue>>();
-    //主题订阅信息
+    //每个topic过滤信息
     protected final ConcurrentMap<String /* topic */, SubscriptionData> subscriptionInner =
         new ConcurrentHashMap<String, SubscriptionData>();
     protected String consumerGroup;
@@ -116,6 +116,7 @@ public abstract class RebalanceImpl {
         }
     }
 
+    //将processQueueTable里的消息按broker分类，方便对同一个broker下的message进行批量上锁
     private HashMap<String/* brokerName */, Set<MessageQueue>> buildProcessQueueTableByBrokerName() {
         HashMap<String, Set<MessageQueue>> result = new HashMap<String, Set<MessageQueue>>();
         for (MessageQueue mq : this.processQueueTable.keySet()) {
@@ -184,6 +185,7 @@ public abstract class RebalanceImpl {
                 requestBody.setMqSet(mqs);
 
                 try {
+                    //通知broker进行批量上锁
                     Set<MessageQueue> lockOKMQSet =
                         this.mQClientFactory.getMQClientAPIImpl().lockBatchMQ(findBrokerResult.getBrokerAddr(), requestBody, 1000);
 
@@ -193,7 +195,7 @@ public abstract class RebalanceImpl {
                             if (!processQueue.isLocked()) {
                                 log.info("the message queue locked OK, Group: {} {}", this.consumerGroup, mq);
                             }
-
+                            //修改本地状态，并添加上锁时间。
                             processQueue.setLocked(true);
                             processQueue.setLastLockTimestamp(System.currentTimeMillis());
                         }
@@ -236,6 +238,7 @@ public abstract class RebalanceImpl {
         return subscriptionInner;
     }
 
+    //isOrder是否顺序消费
     private void rebalanceByTopic(final String topic, final boolean isOrder) {
         switch (messageModel) {
             //广播模式

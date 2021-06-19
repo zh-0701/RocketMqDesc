@@ -43,6 +43,7 @@ public class ConsumeQueue {
     private final int mappedFileSize;
     private long maxPhysicOffset = -1;
     private volatile long minLogicOffset = 0;
+    //扩展属性实体
     private ConsumeQueueExt consumeQueueExt = null;
 
     public ConsumeQueue(
@@ -381,15 +382,17 @@ public class ConsumeQueue {
 
     public void putMessagePositionInfoWrapper(DispatchRequest request) {
         final int maxRetries = 30;
+        //校验一下当前broker是否是正常运行状态
         boolean canWrite = this.defaultMessageStore.getRunningFlags().isCQWriteable();
         for (int i = 0; i < maxRetries && canWrite; i++) {
             long tagsCode = request.getTagsCode();
-            if (isExtWriteEnable()) {
+            if (isExtWriteEnable()) {//若启用扩展属性，则将下列属性存入扩展属性
                 ConsumeQueueExt.CqExtUnit cqExtUnit = new ConsumeQueueExt.CqExtUnit();
                 cqExtUnit.setFilterBitMap(request.getBitMap());
                 cqExtUnit.setMsgStoreTime(request.getStoreTimestamp());
                 cqExtUnit.setTagsCode(request.getTagsCode());
 
+                //消息过滤tag
                 long extAddr = this.consumeQueueExt.put(cqExtUnit);
                 if (isExtAddr(extAddr)) {
                     tagsCode = extAddr;

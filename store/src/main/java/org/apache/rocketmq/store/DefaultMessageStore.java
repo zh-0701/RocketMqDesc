@@ -76,7 +76,7 @@ public class DefaultMessageStore implements MessageStore {
     private final FlushConsumeQueueService flushConsumeQueueService;
     //用于清除commitlog文件
     private final CleanCommitLogService cleanCommitLogService;
-    //清除文件
+    //删除consumequeue文件
     private final CleanConsumeQueueService cleanConsumeQueueService;
     //索引文件实现
     private final IndexService indexService;
@@ -270,6 +270,8 @@ public class DefaultMessageStore implements MessageStore {
             }
             log.info("[SetReputOffset] maxPhysicalPosInLogicQueue={} clMinOffset={} clMaxOffset={} clConfirmedOffset={}",
                 maxPhysicalPosInLogicQueue, this.commitLog.getMinOffset(), this.commitLog.getMaxOffset(), this.commitLog.getConfirmOffset());
+
+            //reputMessageService该服务会检测commitlog是否更新，若更新则根据更新内容去更新consumequeue和indexfile
             this.reputMessageService.setReputFromOffset(maxPhysicalPosInLogicQueue);
             this.reputMessageService.start();
 
@@ -1315,7 +1317,7 @@ public class DefaultMessageStore implements MessageStore {
 
     private void addScheduleTask() {
 
-        //清理过期文件
+        //定期清理commitlog,consumerqueue文件入口
         this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
@@ -1581,10 +1583,12 @@ public class DefaultMessageStore implements MessageStore {
     //CommitLog转ConsumeQueue实现类
     class CommitLogDispatcherBuildConsumeQueue implements CommitLogDispatcher {
 
+        //生成consumequeue入口
         @Override
         public void dispatch(DispatchRequest request) {
             final int tranType = MessageSysFlag.getTransactionValue(request.getSysFlag());
             switch (tranType) {
+                //当消息 的syslog是默认值或者二段提交完成时才进行consumequeue的生成
                 case MessageSysFlag.TRANSACTION_NOT_TYPE:
                 case MessageSysFlag.TRANSACTION_COMMIT_TYPE:
                     DefaultMessageStore.this.putMessagePositionInfo(request);
@@ -1609,10 +1613,10 @@ public class DefaultMessageStore implements MessageStore {
     class CleanCommitLogService {
 
         private final static int MAX_MANUAL_DELETE_FILE_TIMES = 20;
-        //日志文件占磁盘总大小的比例，超过则进行文件删除
+        //日志文件占磁盘总大小的比例，超过则进行报警并文件删除
         private final double diskSpaceWarningLevelRatio =
             Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceWarningLevelRatio", "0.90"));
-        //超过该值会建议进行文件 清除。如何建议的？
+        //日志文件占磁盘总大小的比例，超过则进行文件删除
         private final double diskSpaceCleanForciblyRatio =
             Double.parseDouble(System.getProperty("rocketmq.broker.diskSpaceCleanForciblyRatio", "0.85"));
         private long lastRedeleteTimestamp = 0;
@@ -1668,6 +1672,7 @@ public class DefaultMessageStore implements MessageStore {
                     manualDeleteFileSeveralTimes,
                     cleanAtOnce);
 
+                //小时->毫秒
                 fileReservedTime *= 60 * 60 * 1000;
 
                 deleteCount = DefaultMessageStore.this.commitLog.deleteExpiredFile(fileReservedTime, deletePhysicFilesInterval,
@@ -1911,6 +1916,7 @@ public class DefaultMessageStore implements MessageStore {
     //将commitlog文件转换 为consumerqueue和indexfile文件
     class ReputMessageService extends ServiceThread {
 
+        //每次转换完数据，会把该值改为当前已刷盘数据的最大偏移量
         private volatile long reputFromOffset = 0;
 
         public long getReputFromOffset() {
@@ -1943,38 +1949,45 @@ public class DefaultMessageStore implements MessageStore {
         }
 
         private boolean isCommitLogAvailable() {
+            //这里的maxoffset指的是commitlog中已刷过盘的指针
             return this.reputFromOffset < DefaultMessageStore.this.commitLog.getMaxOffset();
         }
 
+        //consumerqueue和indexfile 更新入口
         private void doReput() {
+            //这通常表示分派的时间太长，commitlog已经过期 ？？？
             if (this.reputFromOffset < DefaultMessageStore.this.commitLog.getMinOffset()) {
                 log.warn("The reputFromOffset={} is smaller than minPyOffset={}, this usually indicate that the dispatch behind too much and the commitlog has expired.",
                     this.reputFromOffset, DefaultMessageStore.this.commitLog.getMinOffset());
                 this.reputFromOffset = DefaultMessageStore.this.commitLog.getMinOffset();
             }
+            //校验上次更新comsumequeue后在commitlog中的偏移量是否小于当前commitlog最大偏移量，若是说明有新的commitlog内容
             for (boolean doNext = true; this.isCommitLogAvailable() && doNext; ) {
 
+                //这个校验不清楚
                 if (DefaultMessageStore.this.getMessageStoreConfig().isDuplicationEnable()
                     && this.reputFromOffset >= DefaultMessageStore.this.getConfirmOffset()) {
                     break;
                 }
-                //返回reputFromOffset该偏移量后的所有有效数据
+                //选取reputFromOffset到最后一次刷盘偏移量之间的数据
                 SelectMappedBufferResult result = DefaultMessageStore.this.commitLog.getData(reputFromOffset);
                 if (result != null) {
                     try {
                         this.reputFromOffset = result.getStartOffset();
 
                         for (int readSize = 0; readSize < result.getSize() && doNext; ) {
+                            //result.getByteBuffer()内容是按特定规则拼接的，所以在此需要校验数据格式对不对，并且解析成对象方便获取其中的属性
                             DispatchRequest dispatchRequest =
                                 DefaultMessageStore.this.commitLog.checkMessageAndReturnSize(result.getByteBuffer(), false, false);
                             int size = dispatchRequest.getBufferSize() == -1 ? dispatchRequest.getMsgSize() : dispatchRequest.getBufferSize();
 
+                            //解析成功
                             if (dispatchRequest.isSuccess()) {
                                 if (size > 0) {
                                     //生成consumerqueue和indexfile文件
                                     DefaultMessageStore.this.doDispatch(dispatchRequest);
 
-                                    //有新的消息写入commitlog 则发布监听事件
+                                    //有新的消息写入consumequeue 则发布监听事件
                                     if (BrokerRole.SLAVE != DefaultMessageStore.this.getMessageStoreConfig().getBrokerRole()
                                         && DefaultMessageStore.this.brokerConfig.isLongPollingEnable()) {
                                         DefaultMessageStore.this.messageArrivingListener.arriving(dispatchRequest.getTopic(),
@@ -1993,6 +2006,7 @@ public class DefaultMessageStore implements MessageStore {
                                             .addAndGet(dispatchRequest.getMsgSize());
                                     }
                                 } else if (size == 0) {
+                                    //代表当前文件已写满，开始写下一个文件
                                     this.reputFromOffset = DefaultMessageStore.this.commitLog.rollNextFile(this.reputFromOffset);
                                     readSize = result.getSize();
                                 }

@@ -92,7 +92,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
     //消费者调用该方法获取消息
     //channel网络通道
     //request请求
-    //brokerAllowSuspend   是否支持挂起
+    //brokerAllowSuspend   是否支持挂起  消息拉取请求是默认支持挂起的
     private RemotingCommand processRequest(final Channel channel, RemotingCommand request, boolean brokerAllowSuspend)
         throws RemotingCommandException {
         RemotingCommand response = RemotingCommand.createResponseCommand(PullMessageResponseHeader.class);
@@ -110,6 +110,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             return response;
         }
 
+        //获取过滤信息
         SubscriptionGroupConfig subscriptionGroupConfig =
             this.brokerController.getSubscriptionGroupManager().findSubscriptionGroupConfig(requestHeader.getConsumerGroup());
         if (null == subscriptionGroupConfig) {
@@ -124,10 +125,12 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
             return response;
         }
 
+        //是否支持挂起
         final boolean hasSuspendFlag = PullSysFlag.hasSuspendFlag(requestHeader.getSysFlag());
         final boolean hasCommitOffsetFlag = PullSysFlag.hasCommitOffsetFlag(requestHeader.getSysFlag());
         final boolean hasSubscriptionFlag = PullSysFlag.hasSubscriptionFlag(requestHeader.getSysFlag());
 
+        //允许被挂起的时间
         final long suspendTimeoutMillisLong = hasSuspendFlag ? requestHeader.getSuspendTimeoutMillis() : 0;
 
         TopicConfig topicConfig = this.brokerController.getTopicConfigManager().selectTopicConfig(requestHeader.getTopic());
@@ -416,7 +419,8 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
 
                     if (brokerAllowSuspend && hasSuspendFlag) {
                         long pollingTimeMills = suspendTimeoutMillisLong;
-                        //这里参数是干嘛用的
+                        //若拉取方式为长轮询则挂起时间来自于请求头，push模式默认15秒 pull模式默认20秒
+                        //若不支持长轮询则挂起时间为1秒
                         if (!this.brokerController.getBrokerConfig().isLongPollingEnable()) {
                             pollingTimeMills = this.brokerController.getBrokerConfig().getShortPollingTimeMills();
                         }
@@ -428,6 +432,7 @@ public class PullMessageProcessor extends AsyncNettyRequestProcessor implements 
                             this.brokerController.getMessageStore().now(), offset, subscriptionData, messageFilter);
                         //将request放入currentmap中，等待其线程取出操作
                         this.brokerController.getPullRequestHoldService().suspendPullRequest(topic, queueId, pullRequest);
+                        //response设置为空，则在通讯层不会给消费者消息应答
                         response = null;
                         break;
                     }

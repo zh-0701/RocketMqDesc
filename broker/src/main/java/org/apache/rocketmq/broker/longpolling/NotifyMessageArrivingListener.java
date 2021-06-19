@@ -28,7 +28,7 @@ public class NotifyMessageArrivingListener implements MessageArrivingListener {
         this.pullRequestHoldService = pullRequestHoldService;
     }
 
-    //用于监听新的commit日志写入。来唤起挂起的pullrequest
+    //监听者，consumerqueue有新消息写入会触发。来唤起挂起的pullrequest
     @Override
     public void arriving(String topic, int queueId, long logicOffset, long tagsCode,
         long msgStoreTime, byte[] filterBitMap, Map<String, String> properties) {

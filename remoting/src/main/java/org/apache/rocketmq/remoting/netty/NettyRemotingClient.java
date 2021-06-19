@@ -81,7 +81,9 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
 
     private final Timer timer = new Timer("ClientHouseKeepingService", true);
 
+    //nameserve集群的各个服务器地址，数据来源于config
     private final AtomicReference<List<String>> namesrvAddrList = new AtomicReference<List<String>>();
+    //多个线程共享的String值并且该值更改是原子性的
     private final AtomicReference<String> namesrvAddrChoosed = new AtomicReference<String>();
     private final AtomicInteger namesrvIndex = new AtomicInteger(initValueIndex());
     private final Lock lockNamesrvChannel = new ReentrantLock();
@@ -378,6 +380,7 @@ public class NettyRemotingClient extends NettyRemotingAbstract implements Remoti
                 doAfterRpcHooks(RemotingHelper.parseChannelRemoteAddr(channel), request, response);
                 return response;
             } catch (RemotingSendRequestException e) {
+                //若发送消息失败会关闭channel
                 log.warn("invokeSync: send request exception, so close the channel[{}]", addr);
                 this.closeChannel(addr, channel);
                 throw e;

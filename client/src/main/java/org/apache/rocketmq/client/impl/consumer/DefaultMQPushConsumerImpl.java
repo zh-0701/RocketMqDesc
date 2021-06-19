@@ -104,6 +104,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
     private volatile ServiceState serviceState = ServiceState.CREATE_JUST;
     private MQClientInstance mQClientFactory;
     private PullAPIWrapper pullAPIWrapper;
+    //是否暂停
     private volatile boolean pause = false;
     //是否顺序消费
     private boolean consumeOrderly = false;
@@ -295,7 +296,7 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
             }
         }
 
-        //拉取消息
+        //拉取过滤信息
         final SubscriptionData subscriptionData = this.rebalanceImpl.getSubscriptionInner().get(pullRequest.getMessageQueue().getTopic());
         if (null == subscriptionData) {
             //延迟3秒重新拉取
@@ -430,10 +431,10 @@ public class DefaultMQPushConsumerImpl implements MQConsumerInner {
         }
 
         int sysFlag = PullSysFlag.buildSysFlag(
-            commitOffsetEnable, // commitOffset
+            commitOffsetEnable, // 集群模式并该条消息队列被消费过
             true, // suspend
-            subExpression != null, // subscription
-            classFilter // class filter
+            subExpression != null, // 有tag过滤条件
+            classFilter // 是否是类过滤模式
         );
         //与broker交互
         try {

@@ -39,6 +39,7 @@ public class MappedFileQueue {
     //单个文件存储大小
     private final int mappedFileSize;
     //文件集合      CopyOnWriteArrayList仅对多个写入线程进行同步
+    //过期的文件会被移除list，所以list.get(0)不一定为第一个commitlog
     private final CopyOnWriteArrayList<MappedFile> mappedFiles = new CopyOnWriteArrayList<MappedFile>();
 
     //创建mapfile的服务类
@@ -132,6 +133,7 @@ public class MappedFileQueue {
             Iterator<MappedFile> iterator = files.iterator();
             while (iterator.hasNext()) {
                 MappedFile cur = iterator.next();
+                //-------
                 if (!this.mappedFiles.contains(cur)) {
                     iterator.remove();
                     log.info("This mappedFile {} is not contained by mappedFiles, so skip it.", cur.getFileName());
@@ -354,12 +356,16 @@ public class MappedFileQueue {
         if (null != mfs) {
             for (int i = 0; i < mfsLength; i++) {
                 MappedFile mappedFile = (MappedFile) mfs[i];
+                //最后一次更新事件+时间间隔阈值
                 long liveMaxTimestamp = mappedFile.getLastModifiedTimestamp() + expiredTime;
                 if (System.currentTimeMillis() >= liveMaxTimestamp || cleanImmediately) {
+                    //intervalForcibly强制删除间隔
+                    //物理删除
                     if (mappedFile.destroy(intervalForcibly)) {
                         files.add(mappedFile);
                         deleteCount++;
 
+                        //一次执行最多删除10个文件
                         if (files.size() >= DELETE_FILES_BATCH_MAX) {
                             break;
                         }
@@ -431,6 +437,7 @@ public class MappedFileQueue {
     //将文件映射内存持久化
     public boolean flush(final int flushLeastPages) {
         boolean result = true;
+        //commitlog限制大小所以会有多个文件，该方法通过偏移量找当前该写入的commitlog对应的mappedFile
         MappedFile mappedFile = this.findMappedFileByOffset(this.flushedWhere, this.flushedWhere == 0);
         if (mappedFile != null) {
             long tmpTimeStamp = mappedFile.getStoreTimestamp();

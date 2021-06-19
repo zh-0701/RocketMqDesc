@@ -1363,6 +1363,8 @@ public class MQClientAPIImpl {
 
         RemotingCommand request = RemotingCommand.createRequestCommand(RequestCode.GET_ROUTEINFO_BY_TOPIC, requestHeader);
 
+        //addr入参为null则会从配置信息里面根据一定规则获取到nameserve的channel
+        //nameserve也是从配置信息里面获取topic对应broker信息
         RemotingCommand response = this.remotingClient.invokeSync(null, request, timeoutMillis);
         assert response != null;
         switch (response.getCode()) {

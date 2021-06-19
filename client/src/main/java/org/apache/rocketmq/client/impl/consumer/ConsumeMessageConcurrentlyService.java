@@ -386,7 +386,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
             return processQueue;
         }
 
-        //开始消费
+        //开始并发消费
         @Override
         public void run() {
             //判断当前队列是否被分配给了其他消费者
@@ -422,7 +422,7 @@ public class ConsumeMessageConcurrentlyService implements ConsumeMessageService 
                         MessageAccessor.setConsumeStartTimeStamp(msg, String.valueOf(System.currentTimeMillis()));
                     }
                 }
-                //Collections.unmodifiableList 返回该list的只读视图
+                //消费者创建的
                 status = listener.consumeMessage(Collections.unmodifiableList(msgs), context);
             } catch (Throwable e) {
                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",

@@ -24,7 +24,7 @@ public class AppendMessageResult {
     private AppendMessageStatus status;
     // 消息物理偏移量
     private long wroteOffset;
-    // Write Bytes
+    //每次写入的消息的长度
     private int wroteBytes;
     // Message ID
     private String msgId;
@@ -44,6 +44,7 @@ public class AppendMessageResult {
         long storeTimestamp, long logicsOffset, long pagecacheRT) {
         this.status = status;
         this.wroteOffset = wroteOffset;
+        //每次写入的消息的长度
         this.wroteBytes = wroteBytes;
         this.msgId = msgId;
         this.storeTimestamp = storeTimestamp;

@@ -43,8 +43,10 @@ public class StoreStatsService extends ServiceThread {
 
     private final AtomicLong putMessageFailedTimes = new AtomicLong(0);
 
+    //topic每写入一个message 该值+1
     private final ConcurrentMap<String, AtomicLong> putMessageTopicTimesTotal =
         new ConcurrentHashMap<String, AtomicLong>(128);
+    //topic每写入一个message 该值+message.lenth
     private final ConcurrentMap<String, AtomicLong> putMessageTopicSizeTotal =
         new ConcurrentHashMap<String, AtomicLong>(128);
 

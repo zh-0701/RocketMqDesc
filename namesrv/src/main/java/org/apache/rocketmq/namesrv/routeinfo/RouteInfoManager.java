@@ -371,6 +371,7 @@ public class RouteInfoManager {
         }
     }
 
+    //nameserve根据topic组装对应的broker路由信息
     public TopicRouteData pickupTopicRouteData(final String topic) {
         TopicRouteData topicRouteData = new TopicRouteData();
         boolean foundQueueData = false;

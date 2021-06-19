@@ -268,6 +268,7 @@ public class ProcessQueue {
         }
     }
 
+    //将消息从processqueue中移除
     public long commit() {
         try {
             this.lockTreeMap.writeLock().lockInterruptibly();

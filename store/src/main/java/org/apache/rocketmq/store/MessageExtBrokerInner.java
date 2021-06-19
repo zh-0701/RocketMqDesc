@@ -21,7 +21,7 @@ import org.apache.rocketmq.common.message.MessageExt;
 
 public class MessageExtBrokerInner extends MessageExt {
     private static final long serialVersionUID = 7256001576878700634L;
-    //存放消息原主题和queueid
+    //这是什么？ debug一下
     private String propertiesString;
     private long tagsCode;
 

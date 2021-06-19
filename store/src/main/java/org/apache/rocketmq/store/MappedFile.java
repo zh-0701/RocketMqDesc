@@ -58,9 +58,9 @@ public class MappedFile extends ReferenceResource {
 
     //jvm中MappedFile对象个数
     private static final AtomicInteger TOTAL_MAPPED_FILES = new AtomicInteger(0);
-    //当前文件的指针（当前文件提交指针+未提交长度）
+    //当前文件的指针（已刷盘+未刷盘）
     protected final AtomicInteger wrotePosition = new AtomicInteger(0);
-    //当前文件的提交指针
+    //上次提交的指针
     protected final AtomicInteger committedPosition = new AtomicInteger(0);
     //刷写指针，该指针之前的数据已持久化
     private final AtomicInteger flushedPosition = new AtomicInteger(0);
@@ -77,7 +77,7 @@ public class MappedFile extends ReferenceResource {
     protected TransientStorePool transientStorePool = null;
     //文件名称
     private String fileName;
-    //初始偏移量
+    //初始偏移量 即每个文件的名称
     private long fileFromOffset;
     //物理文件
     private File file;
@@ -241,6 +241,7 @@ public class MappedFile extends ReferenceResource {
             } else {
                 return new AppendMessageResult(AppendMessageStatus.UNKNOWN_ERROR);
             }
+            //写指针增加本次消息长度
             this.wrotePosition.addAndGet(result.getWroteBytes());
             this.storeTimestamp = result.getStoreTimestamp();
             return result;
@@ -434,6 +435,7 @@ public class MappedFile extends ReferenceResource {
         return null;
     }
 
+    //选取在commitlog中pos到最后一次刷盘偏移量之间的数据
     public SelectMappedBufferResult selectMappedBuffer(int pos) {
         int readPosition = getReadPosition();
         if (pos < readPosition && pos >= 0) {

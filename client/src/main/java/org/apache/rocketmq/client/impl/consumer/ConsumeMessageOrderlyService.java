@@ -88,6 +88,8 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
     }
 
     public void start() {
+        //顺序消费上锁入口  默认20s执行一次
+        //上锁的目的是告知broker，这些消息已被当前消费者持有，不允许其他消费者再获取
         if (MessageModel.CLUSTERING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())) {
             this.scheduledExecutorService.scheduleAtFixedRate(new Runnable() {
                 @Override
@@ -280,14 +282,18 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                     break;
                 case SUSPEND_CURRENT_QUEUE_A_MOMENT:
                     this.getConsumerStatsManager().incConsumeFailedTPS(consumerGroup, consumeRequest.getMessageQueue().getTopic(), msgs.size());
+                    //校验消息是否达到重试最大值
                     if (checkReconsumeTimes(msgs)) {
+                        //将消息重新放回processqueue中
                         consumeRequest.getProcessQueue().makeMessageToConsumeAgain(msgs);
+                        //重新进行消费
                         this.submitConsumeRequestLater(
                             consumeRequest.getProcessQueue(),
                             consumeRequest.getMessageQueue(),
                             context.getSuspendCurrentQueueTimeMillis());
                         continueConsume = false;
                     } else {
+                        //
                         commitOffset = consumeRequest.getProcessQueue().commit();
                     }
                     break;
@@ -413,6 +419,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             return messageQueue;
         }
 
+        //开始顺序消费
         @Override
         public void run() {
             if (this.processQueue.isDropped()) {
@@ -421,7 +428,10 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
             }
 
             final Object objLock = messageQueueLock.fetchLockObject(this.messageQueue);
+            //当前线程锁住该消息
             synchronized (objLock) {
+                //若为广播模式，则不需要锁定
+                //集群模式下，若队列已被定时任务锁定则继续执行逻辑
                 if (MessageModel.BROADCASTING.equals(ConsumeMessageOrderlyService.this.defaultMQPushConsumerImpl.messageModel())
                     || (this.processQueue.isLocked() && !this.processQueue.isLockExpired())) {
                     final long beginTime = System.currentTimeMillis();
@@ -445,12 +455,14 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             break;
                         }
 
+                        //每个ConsumeRequest 只执行60秒，60后不论处理完没有都由其他线程继续执行
                         long interval = System.currentTimeMillis() - beginTime;
                         if (interval > MAX_TIME_CONSUME_CONTINUOUSLY) {
                             ConsumeMessageOrderlyService.this.submitConsumeRequestLater(processQueue, messageQueue, 10);
                             break;
                         }
 
+                        //取出待消费消息
                         final int consumeBatchSize =
                             ConsumeMessageOrderlyService.this.defaultMQPushConsumer.getConsumeMessageBatchMaxSize();
 
@@ -479,6 +491,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                             ConsumeReturnType returnType = ConsumeReturnType.SUCCESS;
                             boolean hasException = false;
                             try {
+                                //申请消费锁
                                 this.processQueue.getLockConsume().lock();
                                 if (this.processQueue.isDropped()) {
                                     log.warn("consumeMessage, the message queue not be able to consume, because it's dropped. {}",
@@ -486,6 +499,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                                     break;
                                 }
 
+                                //消费消息
                                 status = messageListener.consumeMessage(Collections.unmodifiableList(msgs), context);
                             } catch (Throwable e) {
                                 log.warn("consumeMessage exception: {} Group: {} Msgs: {} MQ: {}",
@@ -546,6 +560,7 @@ public class ConsumeMessageOrderlyService implements ConsumeMessageService {
                         }
                     }
                 } else {
+                    //集群模式下消息队列未被锁定，需要去给消息队列上锁，锁上后再重新生成请求，换个线程走本方法的逻辑
                     if (this.processQueue.isDropped()) {
                         log.warn("the message queue not be able to consume, because it's dropped. {}", this.messageQueue);
                         return;
